@@ -17,10 +17,6 @@
 - jdk17: java17/21 + springboot 3.4 + springcloud 2024
 - master: java8 + springboot 2.7 + springcloud 2021
 
-#### 文档视频
-
-- 🔥 [ 配套文档 wiki.pig4cloud.com](https://wiki.pig4cloud.com)
-
 #### 其他产品
 
 - 👉🏻 [PIGX 在线体验](http://home.pig4cloud.com:38081)
@@ -35,15 +31,32 @@
 
 ## 快速开始
 
+#### Docker 快速体验
+
+```shell
+# 可用内存大于4G
+curl -o docker-compose.yaml https://try.pig4cloud.com
+# 等待5分钟
+docker compose up
+```
+
+#### 本地开发运行
+
+pig 提供了详细的[部署文档 wiki.pig4cloud.com](https://www.yuque.com/pig4cloud/pig/vsdox9)，包括开发环境安装、服务端代码运行、前端代码运行等。
+
+请务必**完全按照**文档部署运行章节 进行操作，减少踩坑弯路！！
+
+- 🔥 [ 配套文档 wiki.pig4cloud.com](https://wiki.pig4cloud.com)
+
 ### 核心依赖
 
 | 依赖                          | 版本         |
 |-----------------------------|------------|
-| Spring Boot                 | 3.4.1      |
+| Spring Boot                 | 3.4.3      |
 | Spring Cloud                | 2024.0.0   |
-| Spring Cloud Alibaba        | 2023.0.3.1 |
-| Spring Authorization Server | 1.4.1      |
-| Mybatis Plus                | 3.5.9      |
+| Spring Cloud Alibaba        | 2023.0.3.2 |
+| Spring Authorization Server | 1.4.2      |
+| Mybatis Plus                | 3.5.10     |
 | Vue                         | 3.4        |
 | Element Plus                | 2.7        |
 
@@ -76,28 +89,6 @@ pig
      └── pig-monitor -- 服务监控 [5001]
      ├── pig-codegen -- 图形化代码生成 [5002]
      └── pig-quartz -- 定时任务管理台 [5007]
-```
-
-### 本地开发 运行
-
-pig 提供了详细的[部署文档 wiki.pig4cloud.com](https://www.yuque.com/pig4cloud/pig/vsdox9)，包括开发环境安装、服务端代码运行、前端代码运行等。
-
-请务必**完全按照**文档部署运行章节 进行操作，减少踩坑弯路！！
-
-### Docker 运行
-
-```
-# 下载并运行服务端代码
-git clone https://gitee.com/log4j/pig.git -b jdk17
-
-cd pig && mvn clean install && docker compose up -d
-
-# 下载并运行前端UI
-git clone https://gitee.com/log4j/pig-ui.git
-
-cd pig-ui && npm install  --registry=https://registry.npmmirror.com
-
-npm install && npm run build:docker && cd docker && docker compose up -d
 ```
 
 ## 免费公开课
