@@ -1,4 +1,3 @@
-version: '3'
 services:
   pig-mysql:
     build:
@@ -31,6 +30,7 @@ services:
     ports:
       - 8848:8848
       - 9848:9848
+      - 8080:8080
     environment:
       MYSQL_HOST: pig-mysql
       REDIS_HOST: pig-redis
@@ -51,6 +51,7 @@ services:
     image: pig-gateway
     environment:
       REDIS_HOST: pig-redis
+      NACOS_HOST: pig-register
     networks:
       - spring_cloud_default
 
@@ -63,6 +64,7 @@ services:
     image: pig-auth
     environment:
       REDIS_HOST: pig-redis
+      NACOS_HOST: pig-register
     networks:
       - spring_cloud_default
 
@@ -76,6 +78,7 @@ services:
     environment:
       MYSQL_HOST: pig-mysql
       REDIS_HOST: pig-redis
+      NACOS_HOST: pig-register
     networks:
       - spring_cloud_default
 
@@ -88,6 +91,8 @@ services:
     container_name: pig-monitor
     hostname: pig-monitor
     image: pig-monitor
+    environment:
+      NACOS_HOST: pig-register
     networks:
       - spring_cloud_default
 
@@ -101,6 +106,7 @@ services:
     environment:
       MYSQL_HOST: pig-mysql
       REDIS_HOST: pig-redis
+      NACOS_HOST: pig-register
     networks:
       - spring_cloud_default
 
@@ -113,6 +119,7 @@ services:
     environment:
       MYSQL_HOST: pig-mysql
       REDIS_HOST: pig-redis
+      NACOS_HOST: pig-register
     networks:
       - spring_cloud_default
 

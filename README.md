@@ -1,9 +1,10 @@
 <p align="center">
  <img src="https://img.shields.io/badge/Pig-3.8-success.svg" alt="Build Status">
- <img src="https://img.shields.io/badge/Spring%20Cloud-2023-blue.svg" alt="Coverage Status">
- <img src="https://img.shields.io/badge/Spring%20Boot-3.3-blue.svg" alt="Downloads">
- <img src="https://img.shields.io/badge/Vue-3.4-blue.svg" alt="Downloads">
+ <img src="https://img.shields.io/badge/Spring%20Cloud-2025-blue.svg" alt="Coverage Status">
+ <img src="https://img.shields.io/badge/Spring%20Boot-3.5-blue.svg" alt="Downloads">
+ <img src="https://img.shields.io/badge/Vue-3.5-blue.svg" alt="Downloads">
  <img src="https://img.shields.io/github/license/pig-mesh/pig"/>
+ <img src="https://gitcode.com/pig-mesh/pig/star/badge.svg"/>
 </p>
 
 ## 系统说明
@@ -12,10 +13,15 @@
 - 提供对 Spring Authorization Server 生产级实践，支持多种安全授权模式
 - 提供对常见容器化方案支持 Kubernetes、Rancher2 、Kubesphere、EDAS、SAE 支持
 
-#### 分支说明
+#### 使用文档
 
-- jdk17: java17/21 + springboot 3.4 + springcloud 2024
-- master: java8 + springboot 2.7 + springcloud 2021
+PIG 提供了详尽的部署文档 👉 [wiki.pig4cloud.com](https://wiki.pig4cloud.com)，涵盖开发环境配置、服务端启动、前端运行等关键步骤。
+
+重要的事情说三遍：
+
+- 🔥 [ 配套文档 wiki.pig4cloud.com](https://wiki.pig4cloud.com)
+- 🔥 [ 配套文档 wiki.pig4cloud.com](https://wiki.pig4cloud.com)
+- 🔥 [ 配套文档 wiki.pig4cloud.com](https://wiki.pig4cloud.com)
 
 #### 其他产品
 
@@ -40,25 +46,17 @@ curl -o docker-compose.yaml https://try.pig4cloud.com
 docker compose up
 ```
 
-#### 本地开发运行
-
-pig 提供了详细的[部署文档 wiki.pig4cloud.com](https://www.yuque.com/pig4cloud/pig/vsdox9)，包括开发环境安装、服务端代码运行、前端代码运行等。
-
-请务必**完全按照**文档部署运行章节 进行操作，减少踩坑弯路！！
-
-- 🔥 [ 配套文档 wiki.pig4cloud.com](https://wiki.pig4cloud.com)
-
 ### 核心依赖
 
-| 依赖                          | 版本         |
-|-----------------------------|------------|
-| Spring Boot                 | 3.4.4      |
-| Spring Cloud                | 2024.0.1   |
-| Spring Cloud Alibaba        | 2023.0.3.2 |
-| Spring Authorization Server | 1.4.2      |
-| Mybatis Plus                | 3.5.11     |
-| Vue                         | 3.4        |
-| Element Plus                | 2.7        |
+| 依赖                          | 版本   |
+|-----------------------------|------|
+| Spring Boot                 | 3.5  |
+| Spring Cloud                | 2025 |
+| Spring Cloud Alibaba        | 2023 |
+| Spring Authorization Server | 1.5  |
+| Mybatis Plus                | 3.5  |
+| Vue                         | 3.5  |
+| Element Plus                | 2.7  |
 
 ### 模块说明
 
