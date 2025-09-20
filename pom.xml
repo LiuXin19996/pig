@@ -19,8 +19,8 @@
 		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<groupId>com.pig4cloud</groupId>
-	<artifactId>pig</artifactId>
+	<groupId>com.neox</groupId>
+	<artifactId>neox-cloud</artifactId>
 	<name>${project.artifactId}</name>
 	<version>${revision}</version>
 	<packaging>pom</packaging>
@@ -103,20 +103,20 @@
 	</dependencies>
 
 	<modules>
-		<module>pig-register</module>
-		<module>pig-gateway</module>
-		<module>pig-auth</module>
-		<module>pig-upms</module>
-		<module>pig-common</module>
-		<module>pig-visual</module>
+		<module>neox-register</module>
+		<module>neox-gateway</module>
+		<module>neox-auth</module>
+		<module>neox-upms</module>
+		<module>neox-common</module>
+		<module>neox-visual</module>
 	</modules>
 
 	<dependencyManagement>
 		<dependencies>
 			<!--pig 公共版本定义-->
 			<dependency>
-				<groupId>com.pig4cloud</groupId>
-				<artifactId>pig-common-bom</artifactId>
+				<groupId>com.neox</groupId>
+				<artifactId>neox-common-bom</artifactId>
 				<version>${project.version}</version>
 				<type>pom</type>
 				<scope>import</scope>

@@ -1,0 +1,5 @@
+com.neox.common.core.config.JacksonConfiguration
+com.neox.common.core.config.RedisTemplateConfiguration
+com.neox.common.core.config.RestTemplateConfiguration
+com.neox.common.core.util.SpringContextHolder
+com.neox.common.core.config.WebMvcConfiguration

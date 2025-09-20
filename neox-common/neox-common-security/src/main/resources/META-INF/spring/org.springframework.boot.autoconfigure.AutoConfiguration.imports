@@ -1,0 +1,7 @@
+com.neox.common.security.service.PigUserDetailsServiceImpl
+com.neox.common.security.service.PigAppUserDetailsServiceImpl
+com.neox.common.security.service.PigRedisOAuth2AuthorizationService
+com.neox.common.security.service.PigRedisOAuth2AuthorizationConsentService
+com.neox.common.security.component.PigSecurityInnerAspect
+com.neox.common.security.component.PigSecurityMessageSourceConfiguration
+com.neox.common.security.service.PigRemoteRegisteredClientRepository

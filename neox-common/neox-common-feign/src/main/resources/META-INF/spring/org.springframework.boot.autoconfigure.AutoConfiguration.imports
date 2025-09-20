@@ -1,0 +1,3 @@
+com.neox.common.feign.PigFeignAutoConfiguration
+com.neox.common.feign.sentinel.SentinelAutoConfiguration
+com.neox.common.feign.sentinel.handle.GlobalBizExceptionHandler

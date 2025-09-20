@@ -1,0 +1,6 @@
+com.neox.admin.api.feign.RemoteClientDetailsService
+com.neox.admin.api.feign.RemoteDictService
+com.neox.admin.api.feign.RemoteLogService
+com.neox.admin.api.feign.RemoteParamService
+com.neox.admin.api.feign.RemoteTokenService
+com.neox.admin.api.feign.RemoteUserService

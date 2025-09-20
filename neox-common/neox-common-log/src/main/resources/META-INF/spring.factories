@@ -1,0 +1,2 @@
+org.springframework.boot.env.EnvironmentPostProcessor=\
+    com.neox.common.log.init.ApplicationLoggerInitializer
