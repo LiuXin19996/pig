@@ -19,22 +19,30 @@
 
 package com.pig4cloud.pig.admin.controller;
 
+import java.util.HashSet;
+import java.util.Set;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.pig4cloud.pig.admin.api.entity.SysMenu;
 import com.pig4cloud.pig.admin.service.SysMenuService;
 import com.pig4cloud.pig.common.core.util.R;
 import com.pig4cloud.pig.common.log.annotation.SysLog;
 import com.pig4cloud.pig.common.security.annotation.HasPermission;
 import com.pig4cloud.pig.common.security.util.SecurityUtils;
+
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
-import org.springframework.http.HttpHeaders;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.HashSet;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * 菜单管理控制器
@@ -73,8 +81,8 @@ public class SysMenuController {
 	 * @return 包含树形菜单的响应结果
 	 */
 	@GetMapping(value = "/tree")
-	public R getTree(Long parentId, String menuName, String type) {
-		return R.ok(sysMenuService.treeMenu(parentId, menuName, type));
+	public R getMenuTree(Long parentId, String menuName, String type) {
+		return R.ok(sysMenuService.getMenuTree(parentId, menuName, type));
 	}
 
 	/**
@@ -84,8 +92,7 @@ public class SysMenuController {
 	 */
 	@GetMapping("/tree/{roleId}")
 	public R getRoleTree(@PathVariable Long roleId) {
-		return R
-			.ok(sysMenuService.findMenuByRoleId(roleId).stream().map(SysMenu::getMenuId).collect(Collectors.toList()));
+		return R.ok(sysMenuService.findMenuByRoleId(roleId).stream().map(SysMenu::getMenuId).toList());
 	}
 
 	/**
@@ -106,7 +113,7 @@ public class SysMenuController {
 	@SysLog("新增菜单")
 	@PostMapping
 	@HasPermission("sys_menu_add")
-	public R save(@Valid @RequestBody SysMenu sysMenu) {
+	public R saveMenu(@Valid @RequestBody SysMenu sysMenu) {
 		sysMenuService.save(sysMenu);
 		return R.ok(sysMenu);
 	}
@@ -131,7 +138,7 @@ public class SysMenuController {
 	@SysLog("更新菜单")
 	@PutMapping
 	@HasPermission("sys_menu_edit")
-	public R update(@Valid @RequestBody SysMenu sysMenu) {
+	public R updateMenu(@Valid @RequestBody SysMenu sysMenu) {
 		return R.ok(sysMenuService.updateMenuById(sysMenu));
 	}
 

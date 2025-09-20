@@ -44,11 +44,11 @@ import java.util.List;
 public interface SysUserService extends IService<SysUser> {
 
 	/**
-	 * 查询用户信息
-	 * @param sysUser 用户
-	 * @return userInfo
+	 * 根据用户信息查询用户详情
+	 * @param query 用户查询条件
+	 * @return 用户详细信息
 	 */
-	UserInfo findUserInfo(SysUser sysUser);
+	R<UserInfo> getUserInfo(UserDTO query);
 
 	/**
 	 * 分页查询用户信息（包含角色信息）
@@ -63,7 +63,7 @@ public interface SysUserService extends IService<SysUser> {
 	 * @param ids 用户
 	 * @return boolean
 	 */
-	Boolean deleteUserByIds(Long[] ids);
+	Boolean removeUserByIds(Long[] ids);
 
 	/**
 	 * 更新当前用户基本信息
@@ -84,7 +84,7 @@ public interface SysUserService extends IService<SysUser> {
 	 * @param id 用户ID
 	 * @return 用户信息
 	 */
-	UserVO selectUserVoById(Long id);
+	UserVO getUserById(Long id);
 
 	/**
 	 * 保存用户信息
@@ -98,7 +98,7 @@ public interface SysUserService extends IService<SysUser> {
 	 * @param userDTO 查询条件
 	 * @return list
 	 */
-	List<UserExcelVO> listUser(UserDTO userDTO);
+	List<UserExcelVO> listUsers(UserDTO userDTO);
 
 	/**
 	 * excel 导入用户
@@ -106,7 +106,7 @@ public interface SysUserService extends IService<SysUser> {
 	 * @param bindingResult 错误数据
 	 * @return ok fail
 	 */
-	R importUser(List<UserExcelVO> excelVOList, BindingResult bindingResult);
+	R importUsers(List<UserExcelVO> excelVOList, BindingResult bindingResult);
 
 	/**
 	 * 注册用户

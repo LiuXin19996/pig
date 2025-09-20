@@ -20,7 +20,6 @@
 package com.pig4cloud.pig.admin.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -103,14 +102,12 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 		sysUser.setPassword(ENCODER.encode(userDto.getPassword()));
 		baseMapper.insert(sysUser);
 		// 保存用户岗位信息
-		Optional.ofNullable(userDto.getPost()).ifPresent(posts -> {
-			posts.stream().map(postId -> {
-				SysUserPost userPost = new SysUserPost();
-				userPost.setUserId(sysUser.getUserId());
-				userPost.setPostId(postId);
-				return userPost;
-			}).forEach(sysUserPostMapper::insert);
-		});
+		Optional.ofNullable(userDto.getPost()).ifPresent(posts -> posts.forEach(postId -> {
+			SysUserPost userPost = new SysUserPost();
+			userPost.setUserId(sysUser.getUserId());
+			userPost.setPostId(postId);
+			sysUserPostMapper.insert(userPost);
+		}));
 
 		// 如果角色为空，赋默认角色
 		if (CollUtil.isEmpty(userDto.getRole())) {
@@ -123,43 +120,40 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 		}
 
 		// 插入用户角色关系表
-		userDto.getRole().stream().map(roleId -> {
+		userDto.getRole().forEach(roleId -> {
 			SysUserRole userRole = new SysUserRole();
 			userRole.setUserId(sysUser.getUserId());
 			userRole.setRoleId(roleId);
-			return userRole;
-		}).forEach(sysUserRoleMapper::insert);
+			sysUserRoleMapper.insert(userRole);
+		});
 		return Boolean.TRUE;
 	}
 
 	/**
 	 * 查询用户全部信息，包括角色和权限
-	 * @param sysUser 用户对象
+	 * @param query 用户查询条件
 	 * @return 包含用户角色和权限的用户信息对象
 	 */
 	@Override
-	public UserInfo findUserInfo(SysUser sysUser) {
+	public R<UserInfo> getUserInfo(UserDTO query) {
+		UserVO dbUser = baseMapper.getUser(query);
+
+		if (dbUser == null) {
+			return R.failed(MsgUtils.getMessage(ErrorCodes.SYS_USER_USERINFO_EMPTY, query.getUsername()));
+		}
+
 		UserInfo userInfo = new UserInfo();
-		userInfo.setSysUser(sysUser);
-		// 设置角色列表 （ID）
-		List<Long> roleIds = sysRoleService.findRolesByUserId(sysUser.getUserId())
+		BeanUtils.copyProperties(dbUser, userInfo);
+		// 设置权限列表（menu.permission）
+		List<String> permissions = dbUser.getRoleList()
 			.stream()
 			.map(SysRole::getRoleId)
-			.collect(Collectors.toList());
-		userInfo.setRoles(ArrayUtil.toArray(roleIds, Long.class));
-
-		// 设置权限列表（menu.permission）
-		Set<String> permissions = new HashSet<>();
-		roleIds.forEach(roleId -> {
-			List<String> permissionList = sysMenuService.findMenuByRoleId(roleId)
-				.stream()
-				.filter(menu -> StrUtil.isNotEmpty(menu.getPermission()))
-				.map(SysMenu::getPermission)
-				.collect(Collectors.toList());
-			permissions.addAll(permissionList);
-		});
-		userInfo.setPermissions(ArrayUtil.toArray(permissions, String.class));
-		return userInfo;
+			.flatMap(roleId -> sysMenuService.findMenuByRoleId(roleId).stream())
+			.filter(menu -> StrUtil.isNotEmpty(menu.getPermission()))
+			.map(SysMenu::getPermission)
+			.toList();
+		userInfo.setPermissions(permissions);
+		return R.ok(userInfo);
 	}
 
 	/**
@@ -170,7 +164,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	 */
 	@Override
 	public IPage getUsersWithRolePage(Page page, UserDTO userDTO) {
-		return baseMapper.getUserVosPage(page, userDTO);
+		return baseMapper.getUsersPage(page, userDTO);
 	}
 
 	/**
@@ -179,8 +173,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	 * @return 用户信息VO对象
 	 */
 	@Override
-	public UserVO selectUserVoById(Long id) {
-		return baseMapper.getUserVoById(id);
+	public UserVO getUserById(Long id) {
+		UserDTO query = new UserDTO();
+		query.setUserId(id);
+		return baseMapper.getUser(query);
 	}
 
 	/**
@@ -191,17 +187,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	 */
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public Boolean deleteUserByIds(Long[] ids) {
+	public Boolean removeUserByIds(Long[] ids) {
+		List<Long> idList = CollUtil.toList(ids);
 		// 删除 spring cache
-		List<SysUser> userList = baseMapper.selectByIds(CollUtil.toList(ids));
 		Cache cache = cacheManager.getCache(CacheConstants.USER_DETAILS);
-		for (SysUser sysUser : userList) {
-			// 立即删除
-			cache.evictIfPresent(sysUser.getUsername());
-		}
+		baseMapper.selectByIds(idList).forEach(user -> cache.evictIfPresent(user.getUsername()));
 
-		sysUserRoleMapper.delete(Wrappers.<SysUserRole>lambdaQuery().in(SysUserRole::getUserId, CollUtil.toList(ids)));
-		this.removeBatchByIds(CollUtil.toList(ids));
+		sysUserRoleMapper.delete(Wrappers.<SysUserRole>lambdaQuery().in(SysUserRole::getUserId, idList));
+		this.removeBatchByIds(idList);
 		return Boolean.TRUE;
 	}
 
@@ -246,24 +239,24 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 			// 删除用户角色关系
 			sysUserRoleMapper
 				.delete(Wrappers.<SysUserRole>lambdaQuery().eq(SysUserRole::getUserId, userDto.getUserId()));
-			userDto.getRole().stream().map(roleId -> {
+			userDto.getRole().forEach(roleId -> {
 				SysUserRole userRole = new SysUserRole();
 				userRole.setUserId(sysUser.getUserId());
 				userRole.setRoleId(roleId);
-				return userRole;
-			}).forEach(SysUserRole::insert);
+				sysUserRoleMapper.insert(userRole);
+			});
 		}
 
 		if (Objects.nonNull(userDto.getPost())) {
 			// 删除用户岗位关系
 			sysUserPostMapper
 				.delete(Wrappers.<SysUserPost>lambdaQuery().eq(SysUserPost::getUserId, userDto.getUserId()));
-			userDto.getPost().stream().map(postId -> {
+			userDto.getPost().forEach(postId -> {
 				SysUserPost userPost = new SysUserPost();
 				userPost.setUserId(sysUser.getUserId());
 				userPost.setPostId(postId);
-				return userPost;
-			}).forEach(SysUserPost::insert);
+				sysUserPostMapper.insert(userPost);
+			});
 		}
 		return Boolean.TRUE;
 	}
@@ -274,25 +267,23 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	 * @return 用户Excel视图对象列表
 	 */
 	@Override
-	public List<UserExcelVO> listUser(UserDTO userDTO) {
+	public List<UserExcelVO> listUsers(UserDTO userDTO) {
 		// 根据数据权限查询全部的用户信息
-		List<UserVO> voList = baseMapper.selectVoList(userDTO);
+		List<UserVO> voList = baseMapper.listUsers(userDTO);
 		// 转换成execl 对象输出
 		return voList.stream().map(userVO -> {
 			UserExcelVO excelVO = new UserExcelVO();
 			BeanUtils.copyProperties(userVO, excelVO);
-			String roleNameList = userVO.getRoleList()
-				.stream()
-				.map(SysRole::getRoleName)
-				.collect(Collectors.joining(StrUtil.COMMA));
-			excelVO.setRoleNameList(roleNameList);
-			String postNameList = userVO.getPostList()
-				.stream()
-				.map(SysPost::getPostName)
-				.collect(Collectors.joining(StrUtil.COMMA));
-			excelVO.setPostNameList(postNameList);
+			excelVO.setRoleNameList(
+					userVO.getRoleList().stream().map(SysRole::getRoleName).collect(Collectors.joining(StrUtil.COMMA)));
+			excelVO.setPostNameList(
+					userVO.getPostList().stream().map(SysPost::getPostName).collect(Collectors.joining(StrUtil.COMMA)));
+
+			if (Objects.nonNull(userVO.getDept())) {
+				excelVO.setDeptName(userVO.getDept().getName());
+			}
 			return excelVO;
-		}).collect(Collectors.toList());
+		}).toList();
 	}
 
 	/**
@@ -302,7 +293,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 	 * @return 导入结果，包含成功或失败信息
 	 */
 	@Override
-	public R importUser(List<UserExcelVO> excelVOList, BindingResult bindingResult) {
+	public R importUsers(List<UserExcelVO> excelVOList, BindingResult bindingResult) {
 		// 通用校验获取失败的数据
 		List<ErrorMessage> errorMessageList = (List<ErrorMessage>) bindingResult.getTarget();
 		List<SysDept> deptList = sysDeptService.list();
@@ -316,10 +307,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
 			Set<String> errorMsg = new HashSet<>();
 			// 校验用户名是否存在
-			boolean exsitUserName = userList.stream()
-				.anyMatch(sysUser -> excel.getUsername().equals(sysUser.getUsername()));
-
-			if (exsitUserName) {
+			if (userList.stream().anyMatch(sysUser -> excel.getUsername().equals(sysUser.getUsername()))) {
 				errorMsg.add(MsgUtils.getMessage(ErrorCodes.SYS_USER_USERNAME_EXISTING, excel.getUsername()));
 			}
 
@@ -327,7 +315,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 			Optional<SysDept> deptOptional = deptList.stream()
 				.filter(dept -> excel.getDeptName().equals(dept.getName()))
 				.findFirst();
-			if (!deptOptional.isPresent()) {
+			if (deptOptional.isEmpty()) {
 				errorMsg.add(MsgUtils.getMessage(ErrorCodes.SYS_DEPT_DEPTNAME_INEXISTENCE, excel.getDeptName()));
 			}
 
@@ -335,7 +323,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 			List<String> roleNameList = StrUtil.split(excel.getRoleNameList(), StrUtil.COMMA);
 			List<SysRole> roleCollList = roleList.stream()
 				.filter(role -> roleNameList.stream().anyMatch(name -> role.getRoleName().equals(name)))
-				.collect(Collectors.toList());
+				.toList();
 
 			if (roleCollList.size() != roleNameList.size()) {
 				errorMsg.add(MsgUtils.getMessage(ErrorCodes.SYS_ROLE_ROLENAME_INEXISTENCE, excel.getRoleNameList()));
@@ -345,7 +333,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 			List<String> postNameList = StrUtil.split(excel.getPostNameList(), StrUtil.COMMA);
 			List<SysPost> postCollList = postList.stream()
 				.filter(post -> postNameList.stream().anyMatch(name -> post.getPostName().equals(name)))
-				.collect(Collectors.toList());
+				.toList();
 
 			if (postCollList.size() != postNameList.size()) {
 				errorMsg.add(MsgUtils.getMessage(ErrorCodes.SYS_POST_POSTNAME_INEXISTENCE, excel.getPostNameList()));
@@ -388,10 +376,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 		// 根据部门名称查询部门ID
 		userDTO.setDeptId(deptOptional.get().getDeptId());
 		// 插入岗位名称
-		List<Long> postIdList = postCollList.stream().map(SysPost::getPostId).collect(Collectors.toList());
+		List<Long> postIdList = postCollList.stream().map(SysPost::getPostId).toList();
 		userDTO.setPost(postIdList);
 		// 根据角色名称查询角色ID
-		List<Long> roleIdList = roleCollList.stream().map(SysRole::getRoleId).collect(Collectors.toList());
+		List<Long> roleIdList = roleCollList.stream().map(SysRole::getRoleId).toList();
 		userDTO.setRole(roleIdList);
 		// 插入用户
 		this.saveUser(userDTO);

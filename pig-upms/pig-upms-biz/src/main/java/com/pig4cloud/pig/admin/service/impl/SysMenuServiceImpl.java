@@ -19,12 +19,19 @@
 
 package com.pig4cloud.pig.admin.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.lang.tree.Tree;
-import cn.hutool.core.lang.tree.TreeNode;
-import cn.hutool.core.lang.tree.TreeUtil;
-import cn.hutool.core.util.BooleanUtil;
-import cn.hutool.core.util.StrUtil;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.pig4cloud.pig.admin.api.entity.SysMenu;
@@ -38,33 +45,24 @@ import com.pig4cloud.pig.common.core.constant.enums.MenuTypeEnum;
 import com.pig4cloud.pig.common.core.exception.ErrorCodes;
 import com.pig4cloud.pig.common.core.util.MsgUtils;
 import com.pig4cloud.pig.common.core.util.R;
+
+import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.lang.tree.Tree;
+import cn.hutool.core.lang.tree.TreeNode;
+import cn.hutool.core.lang.tree.TreeUtil;
+import cn.hutool.core.util.BooleanUtil;
+import cn.hutool.core.util.StrUtil;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 /**
  * 菜单权限表服务实现类
  *
  * @author lengleng
  * @date 2025/05/30
- * @since 2017-10-29
  */
 @Service
 @AllArgsConstructor
-@Slf4j
 public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> implements SysMenuService {
 
 	private final SysRoleMenuMapper sysRoleMenuMapper;
@@ -121,7 +119,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
 	 * @return 菜单树结构列表，模糊查询时返回平铺列表
 	 */
 	@Override
-	public List<Tree<Long>> treeMenu(Long parentId, String menuName, String type) {
+	public List<Tree<Long>> getMenuTree(Long parentId, String menuName, String type) {
 		Long parent = parentId == null ? CommonConstants.MENU_TREE_ROOT_ID : parentId;
 
 		List<TreeNode<Long>> collect = baseMapper
@@ -131,7 +129,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
 				.orderByAsc(SysMenu::getSortOrder))
 			.stream()
 			.map(getNodeFunction())
-			.collect(Collectors.toList());
+			.toList();
 
 		// 模糊查询 不组装树结构 直接返回 表格方便编辑
 		if (StrUtil.isNotBlank(menuName)) {
@@ -140,7 +138,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
 				tree.putAll(node.getExtra());
 				BeanUtils.copyProperties(node, tree);
 				return tree;
-			}).collect(Collectors.toList());
+			}).toList();
 		}
 
 		return TreeUtil.build(collect, parent);
@@ -155,10 +153,7 @@ public class SysMenuServiceImpl extends ServiceImpl<SysMenuMapper, SysMenu> impl
 	 */
 	@Override
 	public List<Tree<Long>> filterMenu(Set<SysMenu> all, String type, Long parentId) {
-		List<TreeNode<Long>> collect = all.stream()
-			.filter(menuTypePredicate(type))
-			.map(getNodeFunction())
-			.collect(Collectors.toList());
+		List<TreeNode<Long>> collect = all.stream().filter(menuTypePredicate(type)).map(getNodeFunction()).toList();
 
 		Long parent = parentId == null ? CommonConstants.MENU_TREE_ROOT_ID : parentId;
 		return TreeUtil.build(collect, parent);

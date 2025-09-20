@@ -16,31 +16,13 @@
 
 package com.pig4cloud.pig.auth.endpoint;
 
-import cn.hutool.core.date.DatePattern;
-import cn.hutool.core.date.TemporalAccessorUtil;
-import cn.hutool.core.map.MapUtil;
-import cn.hutool.core.util.StrUtil;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.pig4cloud.pig.admin.api.entity.SysOauthClientDetails;
-import com.pig4cloud.pig.admin.api.feign.RemoteClientDetailsService;
-import com.pig4cloud.pig.admin.api.vo.TokenVo;
-import com.pig4cloud.pig.auth.support.handler.PigAuthenticationFailureEventHandler;
-import com.pig4cloud.pig.common.core.constant.CacheConstants;
-import com.pig4cloud.pig.common.core.constant.CommonConstants;
-import com.pig4cloud.pig.common.core.util.R;
-import com.pig4cloud.pig.common.core.util.RetOps;
-import com.pig4cloud.pig.common.core.util.SpringContextHolder;
-import com.pig4cloud.pig.common.security.annotation.Inner;
-import com.pig4cloud.pig.common.security.util.OAuth2EndpointUtils;
-import com.pig4cloud.pig.common.security.util.OAuth2ErrorCodesExpand;
-import com.pig4cloud.pig.common.security.util.OAuthClientException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
+import java.security.Principal;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+
 import org.springframework.cache.CacheManager;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -58,14 +40,42 @@ import org.springframework.security.oauth2.server.resource.InvalidBearerTokenExc
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 
-import java.security.Principal;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.pig4cloud.pig.admin.api.entity.SysOauthClientDetails;
+import com.pig4cloud.pig.admin.api.feign.RemoteClientDetailsService;
+import com.pig4cloud.pig.admin.api.vo.TokenVo;
+import com.pig4cloud.pig.auth.support.handler.PigAuthenticationFailureEventHandler;
+import com.pig4cloud.pig.common.core.constant.CacheConstants;
+import com.pig4cloud.pig.common.core.constant.CommonConstants;
+import com.pig4cloud.pig.common.core.constant.SecurityConstants;
+import com.pig4cloud.pig.common.core.util.R;
+import com.pig4cloud.pig.common.core.util.RedisUtils;
+import com.pig4cloud.pig.common.core.util.RetOps;
+import com.pig4cloud.pig.common.core.util.SpringContextHolder;
+import com.pig4cloud.pig.common.security.annotation.Inner;
+import com.pig4cloud.pig.common.security.util.OAuth2EndpointUtils;
+import com.pig4cloud.pig.common.security.util.OAuth2ErrorCodesExpand;
+import com.pig4cloud.pig.common.security.util.OAuthClientException;
+
+import cn.hutool.core.date.DatePattern;
+import cn.hutool.core.date.TemporalAccessorUtil;
+import cn.hutool.core.map.MapUtil;
+import cn.hutool.core.util.StrUtil;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 
 /**
  * OAuth2 令牌端点控制器，提供令牌相关操作
@@ -73,7 +83,6 @@ import java.util.stream.Collectors;
  * @author lengleng
  * @date 2025/05/30
  */
-@Slf4j
 @RestController
 @RequestMapping
 @RequiredArgsConstructor
@@ -86,8 +95,6 @@ public class PigTokenEndpoint {
 	private final OAuth2AuthorizationService authorizationService;
 
 	private final RemoteClientDetailsService clientDetailsService;
-
-	private final RedisTemplate<String, Object> redisTemplate;
 
 	private final CacheManager cacheManager;
 
@@ -215,34 +222,60 @@ public class PigTokenEndpoint {
 	@PostMapping("/token/page")
 	public R<Page> tokenList(@RequestBody Map<String, Object> params) {
 		// 根据分页参数获取对应数据
-		String key = String.format("%s::*", CacheConstants.PROJECT_OAUTH_ACCESS);
+		String username = MapUtil.getStr(params, SecurityConstants.USERNAME);
+		String pattern = String.format("%s::*", CacheConstants.PROJECT_OAUTH_ACCESS);
 		int current = MapUtil.getInt(params, CommonConstants.CURRENT);
 		int size = MapUtil.getInt(params, CommonConstants.SIZE);
-		Set<String> keys = redisTemplate.keys(key);
-		List<String> pages = keys.stream().skip((current - 1) * size).limit(size).collect(Collectors.toList());
 		Page result = new Page(current, size);
 
-		List<TokenVo> tokenVoList = redisTemplate.opsForValue().multiGet(pages).stream().map(obj -> {
-			OAuth2Authorization authorization = (OAuth2Authorization) obj;
-			TokenVo tokenVo = new TokenVo();
-			tokenVo.setClientId(authorization.getRegisteredClientId());
-			tokenVo.setId(authorization.getId());
-			tokenVo.setUsername(authorization.getPrincipalName());
-			OAuth2Authorization.Token<OAuth2AccessToken> accessToken = authorization.getAccessToken();
-			tokenVo.setAccessToken(accessToken.getToken().getTokenValue());
+		// 获取总数
+		List<String> allKeys = RedisUtils.scan(pattern);
+		result.setTotal(allKeys.size());
 
-			String expiresAt = TemporalAccessorUtil.format(accessToken.getToken().getExpiresAt(),
-					DatePattern.NORM_DATETIME_PATTERN);
-			tokenVo.setExpiresAt(expiresAt);
+		List<String> pageKeys = RedisUtils.findKeysForPage(pattern, current - 1, size);
+		List<OAuth2Authorization> pagedAuthorizations = RedisUtils.multiGet(pageKeys);
 
-			String issuedAt = TemporalAccessorUtil.format(accessToken.getToken().getIssuedAt(),
-					DatePattern.NORM_DATETIME_PATTERN);
-			tokenVo.setIssuedAt(issuedAt);
-			return tokenVo;
-		}).collect(Collectors.toList());
+		// 转换为TokenVo
+		List<TokenVo> tokenVoList = pagedAuthorizations.stream()
+			.filter(Objects::nonNull)
+			.map(this::convertToTokenVo)
+			.filter(tokenVo -> {
+				if (StrUtil.isBlank(username)) {
+					return true;
+				}
+				return StrUtil.startWithAnyIgnoreCase(tokenVo.getUsername(), username);
+			})
+			.toList();
+
+		if (StrUtil.isNotBlank(username)) {
+			result.setTotal(tokenVoList.size());
+		}
+
 		result.setRecords(tokenVoList);
-		result.setTotal(keys.size());
 		return R.ok(result);
+	}
+
+	/**
+	 * 将OAuth2Authorization转换为TokenVo
+	 * @param authorization OAuth2授权对象
+	 * @return TokenVo对象
+	 */
+	private TokenVo convertToTokenVo(OAuth2Authorization authorization) {
+		TokenVo tokenVo = new TokenVo();
+		tokenVo.setClientId(authorization.getRegisteredClientId());
+		tokenVo.setId(authorization.getId());
+		tokenVo.setUsername(authorization.getPrincipalName());
+		OAuth2Authorization.Token<OAuth2AccessToken> accessToken = authorization.getAccessToken();
+		tokenVo.setAccessToken(accessToken.getToken().getTokenValue());
+
+		String expiresAt = TemporalAccessorUtil.format(accessToken.getToken().getExpiresAt(),
+				DatePattern.NORM_DATETIME_PATTERN);
+		tokenVo.setExpiresAt(expiresAt);
+
+		String issuedAt = TemporalAccessorUtil.format(accessToken.getToken().getIssuedAt(),
+				DatePattern.NORM_DATETIME_PATTERN);
+		tokenVo.setIssuedAt(issuedAt);
+		return tokenVo;
 	}
 
 }

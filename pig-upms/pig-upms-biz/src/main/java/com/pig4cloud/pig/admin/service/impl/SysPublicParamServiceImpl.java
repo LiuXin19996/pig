@@ -17,7 +17,12 @@
 
 package com.pig4cloud.pig.admin.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
+import java.util.List;
+
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.pig4cloud.pig.admin.api.entity.SysPublicParam;
@@ -28,13 +33,9 @@ import com.pig4cloud.pig.common.core.constant.enums.DictTypeEnum;
 import com.pig4cloud.pig.common.core.exception.ErrorCodes;
 import com.pig4cloud.pig.common.core.util.MsgUtils;
 import com.pig4cloud.pig.common.core.util.R;
-import lombok.AllArgsConstructor;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import cn.hutool.core.collection.CollUtil;
+import lombok.AllArgsConstructor;
 
 /**
  * 系统公共参数服务实现类
@@ -55,7 +56,7 @@ public class SysPublicParamServiceImpl extends ServiceImpl<SysPublicParamMapper,
 	 */
 	@Override
 	@Cacheable(value = CacheConstants.PARAMS_DETAILS, key = "#publicKey", unless = "#result == null ")
-	public String getSysPublicParamKeyToValue(String publicKey) {
+	public String getParamValue(String publicKey) {
 		SysPublicParam sysPublicParam = this.baseMapper
 			.selectOne(Wrappers.<SysPublicParam>lambdaQuery().eq(SysPublicParam::getPublicKey, publicKey));
 
@@ -95,7 +96,7 @@ public class SysPublicParamServiceImpl extends ServiceImpl<SysPublicParamMapper,
 			.stream()
 			.filter(p -> !p.getSystemFlag().equals(DictTypeEnum.SYSTEM.getType()))// 系统内置的跳过不能删除
 			.map(SysPublicParam::getPublicId)
-			.collect(Collectors.toList());
+			.toList();
 		return R.ok(this.removeBatchByIds(idList));
 	}
 

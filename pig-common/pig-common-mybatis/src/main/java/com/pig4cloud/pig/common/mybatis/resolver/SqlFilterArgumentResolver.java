@@ -18,12 +18,12 @@
 
 package com.pig4cloud.pig.common.mybatis.resolver;
 
+import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.core.toolkit.sql.SqlInjectionUtils;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.MethodParameter;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
@@ -34,7 +34,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Mybatis Plus Order By SQL注入问题解决类
@@ -42,7 +41,6 @@ import java.util.stream.Collectors;
  * @author lengleng
  * @date 2019-06-24
  */
-@Slf4j
 public class SqlFilterArgumentResolver implements HandlerMethodArgumentResolver {
 
 	/**
@@ -77,24 +75,20 @@ public class SqlFilterArgumentResolver implements HandlerMethodArgumentResolver 
 
 		Page<?> page = new Page<>();
 		if (StrUtil.isNotBlank(current)) {
-			page.setCurrent(Long.parseLong(current));
+			page.setCurrent(Convert.toLong(current, 0L));
 		}
 
 		if (StrUtil.isNotBlank(size)) {
-			page.setSize(Long.parseLong(size));
+			page.setSize(Convert.toLong(size, 10L));
 		}
 
 		List<OrderItem> orderItemList = new ArrayList<>();
 		Optional.ofNullable(ascs)
-			.ifPresent(s -> orderItemList.addAll(Arrays.stream(s)
-				.filter(asc -> !SqlInjectionUtils.check(asc))
-				.map(OrderItem::asc)
-				.collect(Collectors.toList())));
+			.ifPresent(s -> orderItemList
+				.addAll(Arrays.stream(s).filter(asc -> !SqlInjectionUtils.check(asc)).map(OrderItem::asc).toList()));
 		Optional.ofNullable(descs)
-			.ifPresent(s -> orderItemList.addAll(Arrays.stream(s)
-				.filter(desc -> !SqlInjectionUtils.check(desc))
-				.map(OrderItem::desc)
-				.collect(Collectors.toList())));
+			.ifPresent(s -> orderItemList
+				.addAll(Arrays.stream(s).filter(desc -> !SqlInjectionUtils.check(desc)).map(OrderItem::desc).toList()));
 		page.addOrder(orderItemList);
 
 		return page;

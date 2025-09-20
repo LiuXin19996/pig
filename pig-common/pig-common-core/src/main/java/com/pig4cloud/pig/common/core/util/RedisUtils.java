@@ -12,7 +12,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 缓存工具类
+ * 缓存工具类，注意这里都是基于RedisTemplate 来操作的
  *
  * @author XX
  * @date 2023/05/12
@@ -28,7 +28,7 @@ public class RedisUtils {
 	 * @param time 时间(秒)
 	 */
 	public boolean expire(String key, long time) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		Optional.ofNullable(redisTemplate)
 			.filter(template -> time > 0)
 			.ifPresent(template -> template.expire(key, time, TimeUnit.SECONDS));
@@ -40,8 +40,8 @@ public class RedisUtils {
 	 * @param key 键 不能为null
 	 * @return 时间(秒) 返回0代表为永久有效
 	 */
-	public long getExpire(Object key) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+	public long getExpire(String key) {
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		return Optional.ofNullable(redisTemplate)
 			.map(template -> template.getExpire(key, TimeUnit.SECONDS))
 			.orElse(-1L);
@@ -53,12 +53,12 @@ public class RedisUtils {
 	 * @return /
 	 */
 	public List<String> scan(String pattern) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		ScanOptions options = ScanOptions.scanOptions().match(pattern).build();
 		return Optional.ofNullable(redisTemplate).map(template -> {
 			RedisConnectionFactory factory = template.getConnectionFactory();
 			RedisConnection rc = Objects.requireNonNull(factory).getConnection();
-			Cursor<byte[]> cursor = rc.scan(options);
+			Cursor<byte[]> cursor = rc.keyCommands().scan(options);
 			List<String> result = new ArrayList<>();
 			while (cursor.hasNext()) {
 				result.add(new String(cursor.next()));
@@ -66,6 +66,19 @@ public class RedisUtils {
 			RedisConnectionUtils.releaseConnection(rc, factory);
 			return result;
 		}).orElse(Collections.emptyList());
+	}
+
+	/**
+	 * 查找匹配key (使用KEYS命令)
+	 * @param pattern key模式，支持通配符 * ? [] 等
+	 * @return 匹配的key列表
+	 * @apiNote 注意：KEYS命令会阻塞Redis服务器，生产环境建议使用scan方法
+	 */
+	public Set<String> keys(String pattern) {
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		return Optional.ofNullable(redisTemplate)
+			.map(template -> template.keys(pattern))
+			.orElse(Collections.emptySet());
 	}
 
 	/**
@@ -80,7 +93,7 @@ public class RedisUtils {
 		ScanOptions options = ScanOptions.scanOptions().match(patternKey).build();
 		RedisConnectionFactory factory = redisTemplate.getConnectionFactory();
 		RedisConnection rc = Objects.requireNonNull(factory).getConnection();
-		Cursor<byte[]> cursor = rc.scan(options);
+		Cursor<byte[]> cursor = rc.keyCommands().scan(options);
 		List<String> result = new ArrayList<>(size);
 		int tmpIndex = 0;
 		int fromIndex = page * size;
@@ -108,7 +121,7 @@ public class RedisUtils {
 	 * @return true 存在 false不存在
 	 */
 	public boolean hasKey(String key) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		return Optional.ofNullable(redisTemplate).map(template -> template.hasKey(key)).orElse(false);
 	}
 
@@ -116,8 +129,8 @@ public class RedisUtils {
 	 * 删除缓存
 	 * @param keys 可以传一个值 或多个
 	 */
-	public void del(String... keys) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+	public void delete(String... keys) {
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		if (keys != null) {
 			Arrays.stream(keys).forEach(redisTemplate::delete);
 		}
@@ -131,7 +144,7 @@ public class RedisUtils {
 	 * @return boolean
 	 */
 	public boolean getLock(String lockKey, String value, int expireTime) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		return Optional.ofNullable(redisTemplate)
 			.map(template -> template.opsForValue().setIfAbsent(lockKey, value, expireTime, TimeUnit.SECONDS))
 			.orElse(false);
@@ -144,7 +157,7 @@ public class RedisUtils {
 	 * @return boolean
 	 */
 	public boolean releaseLock(String lockKey, String value) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		String script = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
 		RedisScript<Long> redisScript = new DefaultRedisScript<>(script, Long.class);
 		return Optional.ofNullable(redisTemplate.execute(redisScript, Collections.singletonList(lockKey), value))
@@ -182,7 +195,7 @@ public class RedisUtils {
 	 * @return true成功 false失败
 	 */
 	public boolean set(String key, Object value) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		Optional.ofNullable(redisTemplate).map(template -> {
 			template.opsForValue().set(key, value);
 			return true;
@@ -198,7 +211,7 @@ public class RedisUtils {
 	 * @return true成功 false 失败
 	 */
 	public boolean set(String key, Object value, long time) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		return Optional.ofNullable(redisTemplate).map(template -> {
 			if (time > 0) {
 				template.opsForValue().set(key, value, time, TimeUnit.SECONDS);
@@ -232,6 +245,16 @@ public class RedisUtils {
 		return true;
 	}
 
+	/**
+	 * 执行 Redis 命令回调
+	 * @param callback Redis回调函数
+	 * @return 执行结果
+	 */
+	public <T> T execute(RedisCallback<T> callback) {
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		return (T) redisTemplate.execute(callback);
+	}
+
 	// ================================Map=================================
 
 	/**
@@ -262,7 +285,7 @@ public class RedisUtils {
 	 * @return true 成功 false 失败
 	 */
 	public boolean hmset(String key, Map<String, Object> map) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		Optional.ofNullable(redisTemplate).map(template -> {
 			template.opsForHash().putAll(key, map);
 			return true;
@@ -278,7 +301,7 @@ public class RedisUtils {
 	 * @return true成功 false失败
 	 */
 	public boolean hmset(String key, Map<String, Object> map, long time) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		Optional.ofNullable(redisTemplate).map(template -> {
 			template.opsForHash().putAll(key, map);
 			if (time > 0) {
@@ -297,7 +320,7 @@ public class RedisUtils {
 	 * @return true 成功 false失败
 	 */
 	public boolean hset(String key, String item, Object value) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		return Optional.ofNullable(redisTemplate).map(template -> {
 			template.opsForHash().put(key, item, value);
 			return true;
@@ -313,7 +336,7 @@ public class RedisUtils {
 	 * @return true 成功 false失败
 	 */
 	public boolean hset(String key, String item, Object value, long time) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		return Optional.ofNullable(redisTemplate).map(template -> {
 			template.opsForHash().put(key, item, value);
 			if (time > 0) {
@@ -505,7 +528,7 @@ public class RedisUtils {
 	 * @return
 	 */
 	public boolean lSet(String key, Object value, long time) {
-		RedisTemplate<Object, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
+		RedisTemplate<String, Object> redisTemplate = SpringContextHolder.getBean(RedisTemplate.class);
 		redisTemplate.opsForList().rightPush(key, value);
 		if (time > 0) {
 			Optional.ofNullable(redisTemplate).ifPresent(template -> template.expire(key, time, TimeUnit.SECONDS));

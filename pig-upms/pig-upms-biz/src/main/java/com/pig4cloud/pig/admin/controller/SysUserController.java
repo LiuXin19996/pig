@@ -19,16 +19,14 @@
 
 package com.pig4cloud.pig.admin.controller;
 
-import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.pig4cloud.pig.admin.api.dto.UserDTO;
+import com.pig4cloud.pig.admin.api.dto.UserInfo;
 import com.pig4cloud.pig.admin.api.entity.SysUser;
 import com.pig4cloud.pig.admin.api.vo.UserExcelVO;
 import com.pig4cloud.pig.admin.service.SysUserService;
 import com.pig4cloud.pig.common.core.constant.CommonConstants;
-import com.pig4cloud.pig.common.core.exception.ErrorCodes;
-import com.pig4cloud.pig.common.core.util.MsgUtils;
 import com.pig4cloud.pig.common.core.util.R;
 import com.pig4cloud.pig.common.log.annotation.SysLog;
 import com.pig4cloud.pig.common.security.annotation.HasPermission;
@@ -65,21 +63,13 @@ public class SysUserController {
 
 	/**
 	 * 查询用户信息
-	 * @param username 用户名(可选)
-	 * @param phone 手机号(可选)
+	 * @param userDTO 用户信息查询参数
 	 * @return 包含用户信息的R对象
 	 */
 	@Inner
 	@GetMapping(value = { "/info/query" })
-	public R info(@RequestParam(required = false) String username, @RequestParam(required = false) String phone) {
-		SysUser user = userService.getOne(Wrappers.<SysUser>query()
-			.lambda()
-			.eq(StrUtil.isNotBlank(username), SysUser::getUsername, username)
-			.eq(StrUtil.isNotBlank(phone), SysUser::getPhone, phone));
-		if (user == null) {
-			return R.failed(MsgUtils.getMessage(ErrorCodes.SYS_USER_USERINFO_EMPTY, username));
-		}
-		return R.ok(userService.findUserInfo(user));
+	public R info(UserDTO userDTO) {
+		return userService.getUserInfo(userDTO);
 	}
 
 	/**
@@ -89,11 +79,14 @@ public class SysUserController {
 	@GetMapping(value = { "/info" })
 	public R info() {
 		String username = SecurityUtils.getUser().getUsername();
-		SysUser user = userService.getOne(Wrappers.<SysUser>query().lambda().eq(SysUser::getUsername, username));
-		if (user == null) {
-			return R.failed(MsgUtils.getMessage(ErrorCodes.SYS_USER_QUERY_ERROR));
+		UserDTO userDTO = new UserDTO();
+		userDTO.setUsername(username);
+		// 获取用户信息，不返回数据库密码字段
+		R<UserInfo> userInfoR = userService.getUserInfo(userDTO);
+		if (userInfoR.getData() != null) {
+			userInfoR.getData().setPassword(null);
 		}
-		return R.ok(userService.findUserInfo(user));
+		return userInfoR;
 	}
 
 	/**
@@ -103,7 +96,7 @@ public class SysUserController {
 	 */
 	@GetMapping("/details/{id}")
 	public R user(@PathVariable Long id) {
-		return R.ok(userService.selectUserVoById(id));
+		return R.ok(userService.getUserById(id));
 	}
 
 	/**
@@ -128,7 +121,7 @@ public class SysUserController {
 	@HasPermission("sys_user_del")
 	@Operation(summary = "删除用户", description = "根据ID删除用户")
 	public R userDel(@RequestBody Long[] ids) {
-		return R.ok(userService.deleteUserByIds(ids));
+		return R.ok(userService.removeUserByIds(ids));
 	}
 
 	/**
@@ -139,7 +132,7 @@ public class SysUserController {
 	@SysLog("添加用户")
 	@PostMapping
 	@HasPermission("sys_user_add")
-	public R user(@RequestBody UserDTO userDto) {
+	public R saveUser(@RequestBody UserDTO userDto) {
 		return R.ok(userService.saveUser(userDto));
 	}
 
@@ -147,7 +140,6 @@ public class SysUserController {
 	 * 更新用户信息
 	 * @param userDto 用户信息DTO对象
 	 * @return 包含操作结果的R对象
-	 * @throws javax.validation.Valid 参数校验失败时抛出异常
 	 */
 	@SysLog("更新用户信息")
 	@PutMapping
@@ -186,8 +178,8 @@ public class SysUserController {
 	@ResponseExcel
 	@GetMapping("/export")
 	@HasPermission("sys_user_export")
-	public List export(UserDTO userDTO) {
-		return userService.listUser(userDTO);
+	public List exportUsers(UserDTO userDTO) {
+		return userService.listUsers(userDTO);
 	}
 
 	/**
@@ -199,7 +191,7 @@ public class SysUserController {
 	@PostMapping("/import")
 	@HasPermission("sys_user_export")
 	public R importUser(@RequestExcel List<UserExcelVO> excelVOList, BindingResult bindingResult) {
-		return userService.importUser(excelVOList, bindingResult);
+		return userService.importUsers(excelVOList, bindingResult);
 	}
 
 	/**

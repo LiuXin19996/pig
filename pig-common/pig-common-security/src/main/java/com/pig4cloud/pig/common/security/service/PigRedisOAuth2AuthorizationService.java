@@ -1,8 +1,7 @@
 package com.pig4cloud.pig.common.security.service;
 
+import com.pig4cloud.pig.common.core.util.RedisUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.lang.Nullable;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2RefreshToken;
@@ -32,8 +31,6 @@ public class PigRedisOAuth2AuthorizationService implements OAuth2AuthorizationSe
 
 	private static final String AUTHORIZATION = "token";
 
-	private final RedisTemplate<String, Object> redisTemplate;
-
 	/**
 	 * 保存OAuth2授权信息到Redis
 	 * @param authorization 授权信息对象，不能为null
@@ -45,9 +42,7 @@ public class PigRedisOAuth2AuthorizationService implements OAuth2AuthorizationSe
 
 		if (isState(authorization)) {
 			String token = authorization.getAttribute("state");
-			redisTemplate.setValueSerializer(RedisSerializer.java());
-			redisTemplate.opsForValue()
-				.set(buildKey(OAuth2ParameterNames.STATE, token), authorization, TIMEOUT, TimeUnit.MINUTES);
+			RedisUtils.set(buildKey(OAuth2ParameterNames.STATE, token), authorization, TIMEOUT, TimeUnit.MINUTES);
 		}
 
 		if (isCode(authorization)) {
@@ -56,28 +51,22 @@ public class PigRedisOAuth2AuthorizationService implements OAuth2AuthorizationSe
 			OAuth2AuthorizationCode authorizationCodeToken = authorizationCode.getToken();
 			long between = ChronoUnit.MINUTES.between(authorizationCodeToken.getIssuedAt(),
 					authorizationCodeToken.getExpiresAt());
-			redisTemplate.setValueSerializer(RedisSerializer.java());
-			redisTemplate.opsForValue()
-				.set(buildKey(OAuth2ParameterNames.CODE, authorizationCodeToken.getTokenValue()), authorization,
-						between, TimeUnit.MINUTES);
+			RedisUtils.set(buildKey(OAuth2ParameterNames.CODE, authorizationCodeToken.getTokenValue()), authorization,
+					between, TimeUnit.MINUTES);
 		}
 
 		if (isRefreshToken(authorization)) {
 			OAuth2RefreshToken refreshToken = authorization.getRefreshToken().getToken();
 			long between = ChronoUnit.SECONDS.between(refreshToken.getIssuedAt(), refreshToken.getExpiresAt());
-			redisTemplate.setValueSerializer(RedisSerializer.java());
-			redisTemplate.opsForValue()
-				.set(buildKey(OAuth2ParameterNames.REFRESH_TOKEN, refreshToken.getTokenValue()), authorization, between,
-						TimeUnit.SECONDS);
+			RedisUtils.set(buildKey(OAuth2ParameterNames.REFRESH_TOKEN, refreshToken.getTokenValue()), authorization,
+					between, TimeUnit.SECONDS);
 		}
 
 		if (isAccessToken(authorization)) {
 			OAuth2AccessToken accessToken = authorization.getAccessToken().getToken();
 			long between = ChronoUnit.SECONDS.between(accessToken.getIssuedAt(), accessToken.getExpiresAt());
-			redisTemplate.setValueSerializer(RedisSerializer.java());
-			redisTemplate.opsForValue()
-				.set(buildKey(OAuth2ParameterNames.ACCESS_TOKEN, accessToken.getTokenValue()), authorization, between,
-						TimeUnit.SECONDS);
+			RedisUtils.set(buildKey(OAuth2ParameterNames.ACCESS_TOKEN, accessToken.getTokenValue()), authorization,
+					between, TimeUnit.SECONDS);
 		}
 	}
 
@@ -112,7 +101,7 @@ public class PigRedisOAuth2AuthorizationService implements OAuth2AuthorizationSe
 			OAuth2AccessToken accessToken = authorization.getAccessToken().getToken();
 			keys.add(buildKey(OAuth2ParameterNames.ACCESS_TOKEN, accessToken.getTokenValue()));
 		}
-		redisTemplate.delete(keys);
+		RedisUtils.delete(keys.toArray(String[]::new));
 	}
 
 	/**
@@ -139,8 +128,7 @@ public class PigRedisOAuth2AuthorizationService implements OAuth2AuthorizationSe
 	public OAuth2Authorization findByToken(String token, @Nullable OAuth2TokenType tokenType) {
 		Assert.hasText(token, "token cannot be empty");
 		Assert.notNull(tokenType, "tokenType cannot be empty");
-		redisTemplate.setValueSerializer(RedisSerializer.java());
-		return (OAuth2Authorization) redisTemplate.opsForValue().get(buildKey(tokenType.getValue(), token));
+		return RedisUtils.get(buildKey(tokenType.getValue(), token));
 	}
 
 	/**

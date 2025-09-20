@@ -42,11 +42,11 @@ import java.util.List;
 public interface SysUserMapper extends BaseMapper<SysUser> {
 
 	/**
-	 * 通过用户名查询用户信息（含有角色信息）
-	 * @param username 用户名
-	 * @return userVo
+	 * 根据用户DTO获取用户VO
+	 * @param userDTO 用户查询条件DTO
+	 * @return 用户信息VO
 	 */
-	UserVO getUserVoByUsername(String username);
+	UserVO getUser(@Param("query") UserDTO userDTO);
 
 	/**
 	 * 分页查询用户信息（含角色）
@@ -54,20 +54,13 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
 	 * @param userDTO 用户查询条件
 	 * @return 分页用户信息列表
 	 */
-	IPage<UserVO> getUserVosPage(Page page, @Param("query") UserDTO userDTO);
-
-	/**
-	 * 通过ID查询用户信息
-	 * @param id 用户ID
-	 * @return userVo
-	 */
-	UserVO getUserVoById(Long id);
+	IPage<UserVO> getUsersPage(Page page, @Param("query") UserDTO userDTO);
 
 	/**
 	 * 查询用户列表
 	 * @param userDTO 查询条件
 	 * @return 用户VO列表
 	 */
-	List<UserVO> selectVoList(@Param("query") UserDTO userDTO);
+	List<UserVO> listUsers(@Param("query") UserDTO userDTO);
 
 }

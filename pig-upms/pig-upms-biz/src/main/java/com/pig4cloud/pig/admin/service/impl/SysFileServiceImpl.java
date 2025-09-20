@@ -21,7 +21,6 @@ import cn.hutool.core.io.IoUtil;
 import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.core.util.URLUtil;
-import com.amazonaws.services.s3.model.S3Object;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.pig4cloud.pig.admin.api.entity.SysFile;
 import com.pig4cloud.pig.admin.mapper.SysFileMapper;
@@ -68,8 +67,8 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFile> impl
 	public R uploadFile(MultipartFile file) {
 		String fileName = IdUtil.simpleUUID() + StrUtil.DOT + FileUtil.extName(file.getOriginalFilename());
 		Map<String, String> resultMap = new HashMap<>(4);
-		resultMap.put("bucketName", properties.getBucketName());
-		resultMap.put("fileName", fileName);
+		resultMap.put(SysFile.Fields.bucketName, properties.getBucketName());
+		resultMap.put(SysFile.Fields.fileName, fileName);
 		resultMap.put("url", String.format("/admin/sys-file/%s/%s", properties.getBucketName(), fileName));
 
 		try (InputStream inputStream = file.getInputStream()) {
@@ -92,10 +91,10 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFile> impl
 	 */
 	@Override
 	public void getFile(String bucket, String fileName, HttpServletResponse response) {
-		try (S3Object s3Object = fileTemplate.getObject(bucket, fileName)) {
+		try (InputStream inputStream = (InputStream) fileTemplate.getObject(bucket, fileName)) {
 			response.setContentType("application/octet-stream; charset=UTF-8");
 			response.addHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + URLUtil.encode(fileName));
-			IoUtil.copy(s3Object.getObjectContent(), response.getOutputStream());
+			IoUtil.copy(inputStream, response.getOutputStream());
 		}
 		catch (Exception e) {
 			log.error("文件读取异常: {}", e.getLocalizedMessage());
@@ -111,7 +110,7 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFile> impl
 	@Override
 	@SneakyThrows
 	@Transactional(rollbackFor = Exception.class)
-	public Boolean deleteFile(Long id) {
+	public Boolean removeFile(Long id) {
 		SysFile file = this.getById(id);
 		if (Objects.isNull(file)) {
 			return Boolean.FALSE;

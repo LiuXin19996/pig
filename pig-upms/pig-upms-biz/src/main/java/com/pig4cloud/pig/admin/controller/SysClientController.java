@@ -76,8 +76,7 @@ public class SysClientController {
 	 * @return 分页查询结果
 	 */
 	@GetMapping("/page")
-	public R getOauthClientDetailsPage(@ParameterObject Page page,
-			@ParameterObject SysOauthClientDetails sysOauthClientDetails) {
+	public R getClientPage(@ParameterObject Page page, @ParameterObject SysOauthClientDetails sysOauthClientDetails) {
 		LambdaQueryWrapper<SysOauthClientDetails> wrapper = Wrappers.<SysOauthClientDetails>lambdaQuery()
 			.like(StrUtil.isNotBlank(sysOauthClientDetails.getClientId()), SysOauthClientDetails::getClientId,
 					sysOauthClientDetails.getClientId())
@@ -94,7 +93,7 @@ public class SysClientController {
 	@SysLog("添加终端")
 	@PostMapping
 	@HasPermission("sys_client_add")
-	public R add(@Valid @RequestBody SysOauthClientDetails clientDetails) {
+	public R saveClient(@Valid @RequestBody SysOauthClientDetails clientDetails) {
 		return R.ok(clientDetailsService.saveClient(clientDetails));
 	}
 
@@ -119,7 +118,7 @@ public class SysClientController {
 	@SysLog("编辑终端")
 	@PutMapping
 	@HasPermission("sys_client_edit")
-	public R update(@Valid @RequestBody SysOauthClientDetails clientDetails) {
+	public R updateClient(@Valid @RequestBody SysOauthClientDetails clientDetails) {
 		return R.ok(clientDetailsService.updateClientById(clientDetails));
 	}
 
@@ -141,7 +140,7 @@ public class SysClientController {
 	 */
 	@SysLog("同步终端")
 	@PutMapping("/sync")
-	public R sync() {
+	public R syncClient() {
 		return clientDetailsService.syncClientCache();
 	}
 
@@ -153,7 +152,7 @@ public class SysClientController {
 	@ResponseExcel
 	@SysLog("导出excel")
 	@GetMapping("/export")
-	public List<SysOauthClientDetails> export(SysOauthClientDetails sysOauthClientDetails) {
+	public List<SysOauthClientDetails> exportClients(SysOauthClientDetails sysOauthClientDetails) {
 		return clientDetailsService.list(Wrappers.query(sysOauthClientDetails));
 	}
 

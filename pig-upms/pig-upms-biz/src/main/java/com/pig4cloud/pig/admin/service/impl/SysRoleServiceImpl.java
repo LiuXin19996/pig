@@ -19,8 +19,15 @@
 
 package com.pig4cloud.pig.admin.service.impl;
 
-import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.collection.CollUtil;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.BindingResult;
+
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.pig4cloud.pig.admin.api.entity.SysRole;
@@ -35,16 +42,10 @@ import com.pig4cloud.pig.common.core.exception.ErrorCodes;
 import com.pig4cloud.pig.common.core.util.MsgUtils;
 import com.pig4cloud.pig.common.core.util.R;
 import com.pig4cloud.plugin.excel.vo.ErrorMessage;
-import lombok.AllArgsConstructor;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.validation.BindingResult;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
+import lombok.AllArgsConstructor;
 
 /**
  * 系统角色服务实现类
@@ -64,7 +65,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 	 * @return 角色信息列表
 	 */
 	@Override
-	public List findRolesByUserId(Long userId) {
+	public List listRolesByUserId(Long userId) {
 		return baseMapper.listRolesByUserId(userId);
 	}
 
@@ -76,7 +77,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 	 */
 	@Override
 	@Cacheable(value = CacheConstants.ROLE_DETAILS, key = "#key", unless = "#result.isEmpty()")
-	public List<SysRole> findRolesByRoleIds(List<Long> roleIdList, String key) {
+	public List<SysRole> listRolesByRoleIds(List<Long> roleIdList, String key) {
 		return baseMapper.selectByIds(roleIdList);
 	}
 
@@ -150,14 +151,14 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 	 * @return 角色Excel视图对象列表
 	 */
 	@Override
-	public List<RoleExcelVO> listRole() {
+	public List<RoleExcelVO> listRoles() {
 		List<SysRole> roleList = this.list(Wrappers.emptyWrapper());
 		// 转换成execl 对象输出
 		return roleList.stream().map(role -> {
 			RoleExcelVO roleExcelVO = new RoleExcelVO();
 			BeanUtil.copyProperties(role, roleExcelVO);
 			return roleExcelVO;
-		}).collect(Collectors.toList());
+		}).toList();
 	}
 
 	/**
