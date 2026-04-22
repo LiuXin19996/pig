@@ -27,6 +27,7 @@ import lombok.experimental.UtilityClass;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.method.HandlerMethod;
@@ -106,8 +107,11 @@ public class WebUtils extends org.springframework.web.util.WebUtils {
 	 * @return {HttpServletRequest}
 	 */
 	public Optional<HttpServletRequest> getRequest() {
-		return Optional
-			.ofNullable(((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest());
+		RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+		if (!(requestAttributes instanceof ServletRequestAttributes servletRequestAttributes)) {
+			return Optional.empty();
+		}
+		return Optional.ofNullable(servletRequestAttributes.getRequest());
 	}
 
 	/**
@@ -115,7 +119,11 @@ public class WebUtils extends org.springframework.web.util.WebUtils {
 	 * @return {HttpServletResponse}
 	 */
 	public HttpServletResponse getResponse() {
-		return ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getResponse();
+		RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
+		if (!(requestAttributes instanceof ServletRequestAttributes servletRequestAttributes)) {
+			return null;
+		}
+		return servletRequestAttributes.getResponse();
 	}
 
 	/**

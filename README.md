@@ -1,3 +1,7 @@
+> **🚀 Spring Boot 4.0 版本来了**
+>
+> 分支 `boot4` 基于 Spring Boot 4.0 + Spring Cloud 2025.1 进行开发。
+
 <p align="center">
  <img src="https://img.shields.io/badge/Pig-3.9-success.svg" alt="Build Status">
  <img src="https://img.shields.io/badge/Spring%20Cloud-2025-blue.svg" alt="Coverage Status">
@@ -9,9 +13,9 @@
 
 ## 系统说明
 
-- 基于 Spring Cloud 、Spring Boot、 OAuth2 的 RBAC **企业快速开发平台**， 同时支持微服务架构和单体架构
-- 提供对 Spring Authorization Server 生产级实践，支持多种安全授权模式
-- 提供对常见容器化方案支持 Kubernetes、Rancher2 、Kubesphere、EDAS、SAE 支持
+- 基于 Spring Cloud 、Spring Boot、 OAuth2 的 RBAC **企业级快速开发平台**， 同时支持微服务架构和单体架构
+- 提供 Spring Authorization Server 的生产级实践方案，支持多种安全授权模式
+- 提供对常见容器化方案支持 Kubernetes、Rancher2 、KubeSphere、EDAS、SAE 支持
 
 #### 使用文档
 
@@ -48,15 +52,15 @@ docker compose up
 
 ### 核心依赖
 
-| 依赖                         | 版本   |
-|-----------------------------|------|
-| Spring Boot                 | 3.5.5  |
-| Spring Cloud                | 2025 |
-| Spring Cloud Alibaba        | 2023 |
+| 依赖                         | 版本     |
+|-----------------------------|--------|
+| Spring Boot                 | 3.5.12 |
+| Spring Cloud                | 2025   |
+| Spring Cloud Alibaba        | 2025   |
 | Spring Authorization Server | 1.5.2  |
-| Mybatis Plus                | 3.5.12  |
-| Vue                         | 3.5  |
-| Element Plus                | 2.7  |
+| Mybatis Plus                | 3.5.15 |
+| Vue                         | 3.5    |
+| Element Plus                | 2.8    |
 
 ### 模块说明
 

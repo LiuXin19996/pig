@@ -26,11 +26,13 @@ import com.pig4cloud.pig.common.core.util.R;
 import com.pig4cloud.pig.common.log.annotation.SysLog;
 import com.pig4cloud.pig.common.security.annotation.HasPermission;
 import com.pig4cloud.pig.common.security.util.SecurityUtils;
+import com.pig4cloud.pig.daemon.quartz.constants.JobTypeQuartzEnum;
 import com.pig4cloud.pig.daemon.quartz.constants.PigQuartzEnum;
 import com.pig4cloud.pig.daemon.quartz.entity.SysJob;
 import com.pig4cloud.pig.daemon.quartz.entity.SysJobLog;
 import com.pig4cloud.pig.daemon.quartz.service.SysJobLogService;
 import com.pig4cloud.pig.daemon.quartz.service.SysJobService;
+import com.pig4cloud.pig.daemon.quartz.util.ClassNameValidator;
 import com.pig4cloud.pig.daemon.quartz.util.TaskUtil;
 import com.pig4cloud.plugin.excel.annotation.ResponseExcel;
 import io.swagger.v3.oas.annotations.Operation;
@@ -55,7 +57,7 @@ import java.util.List;
 @RestController
 @AllArgsConstructor
 @RequestMapping("/sys-job")
-@Tag(description = "sys-job", name = "定时任务")
+@Tag(description = "sys-job", name = "定时任务管理模块")
 @SecurityRequirement(name = HttpHeaders.AUTHORIZATION)
 public class SysJobController {
 
@@ -74,7 +76,7 @@ public class SysJobController {
 	 * @return R
 	 */
 	@GetMapping("/page")
-	@Operation(description = "分页定时业务查询")
+	@Operation(summary = "分页定时业务查询", description = "分页定时业务查询")
 	public R getJobPage(Page page, SysJob sysJob) {
 		LambdaQueryWrapper<SysJob> wrapper = Wrappers.<SysJob>lambdaQuery()
 			.like(StrUtil.isNotBlank(sysJob.getJobName()), SysJob::getJobName, sysJob.getJobName())
@@ -91,7 +93,7 @@ public class SysJobController {
 	 * @return R
 	 */
 	@GetMapping("/{id}")
-	@Operation(description = "唯一标识查询定时任务")
+	@Operation(summary = "唯一标识查询定时任务", description = "唯一标识查询定时任务")
 	public R getById(@PathVariable("id") Long id) {
 		return R.ok(sysJobService.getById(id));
 	}
@@ -104,7 +106,7 @@ public class SysJobController {
 	@SysLog("新增定时任务")
 	@PostMapping
 	@HasPermission("job_sys_job_add")
-	@Operation(description = "新增定时任务")
+	@Operation(summary = "新增定时任务", description = "新增定时任务")
 	public R saveJob(@RequestBody SysJob sysJob) {
 		long count = sysJobService.count(
 				Wrappers.query(SysJob.builder().jobName(sysJob.getJobName()).jobGroup(sysJob.getJobGroup()).build()));
@@ -112,6 +114,19 @@ public class SysJobController {
 		if (count > 0) {
 			return R.failed("任务重复，请检查此组内是否已包含同名任务");
 		}
+
+		// 安全验证：对于Java类类型的任务，验证类名和方法名
+		if (JobTypeQuartzEnum.JAVA.getType().equals(sysJob.getJobType())) {
+			if (!ClassNameValidator.isValidClassName(sysJob.getClassName())) {
+				log.warn("新增定时任务失败，类名验证不通过：{}", sysJob.getClassName());
+				return R.failed("类名验证失败，该类在黑名单中或包含危险特征，拒绝创建");
+			}
+			if (!ClassNameValidator.isValidMethodName(sysJob.getMethodName())) {
+				log.warn("新增定时任务失败，方法名验证不通过：{}", sysJob.getMethodName());
+				return R.failed("方法名验证失败，该方法在黑名单中或包含危险特征，拒绝创建");
+			}
+		}
+
 		sysJob.setJobStatus(PigQuartzEnum.JOB_STATUS_RELEASE.getType());
 		sysJob.setCreateBy(SecurityUtils.getUser().getUsername());
 		return R.ok(sysJobService.save(sysJob));
@@ -125,8 +140,20 @@ public class SysJobController {
 	@SysLog("修改定时任务")
 	@PutMapping
 	@HasPermission("job_sys_job_edit")
-	@Operation(description = "修改定时任务")
+	@Operation(summary = "修改定时任务", description = "修改定时任务")
 	public R updateJob(@RequestBody SysJob sysJob) {
+		// 安全验证：对于Java类类型的任务，验证类名和方法名
+		if (JobTypeQuartzEnum.JAVA.getType().equals(sysJob.getJobType())) {
+			if (!ClassNameValidator.isValidClassName(sysJob.getClassName())) {
+				log.warn("修改定时任务失败，类名验证不通过：{}", sysJob.getClassName());
+				return R.failed("类名验证失败，该类在黑名单中或包含危险特征，拒绝修改");
+			}
+			if (!ClassNameValidator.isValidMethodName(sysJob.getMethodName())) {
+				log.warn("修改定时任务失败，方法名验证不通过：{}", sysJob.getMethodName());
+				return R.failed("方法名验证失败，该方法在黑名单中或包含危险特征，拒绝修改");
+			}
+		}
+
 		sysJob.setUpdateBy(SecurityUtils.getUser().getUsername());
 		SysJob querySysJob = this.sysJobService.getById(sysJob.getJobId());
 		if (PigQuartzEnum.JOB_STATUS_NOT_RUNNING.getType().equals(querySysJob.getJobStatus())) {
@@ -149,7 +176,7 @@ public class SysJobController {
 	@SysLog("删除定时任务")
 	@DeleteMapping("/{id}")
 	@HasPermission("job_sys_job_del")
-	@Operation(description = "唯一标识查询定时任务，暂停任务才能删除")
+	@Operation(summary = "唯一标识查询定时任务，暂停任务才能删除", description = "唯一标识查询定时任务，暂停任务才能删除")
 	public R removeById(@PathVariable Long id) {
 		SysJob querySysJob = this.sysJobService.getById(id);
 		if (PigQuartzEnum.JOB_STATUS_NOT_RUNNING.getType().equals(querySysJob.getJobStatus())) {
@@ -169,7 +196,7 @@ public class SysJobController {
 	@SysLog("暂停全部定时任务")
 	@PostMapping("/shutdown-jobs")
 	@HasPermission("job_sys_job_shutdown_job")
-	@Operation(description = "暂停全部定时任务")
+	@Operation(summary = "暂停全部定时任务", description = "暂停全部定时任务")
 	public R shutdownJobs() {
 		taskUtil.pauseJobs(scheduler);
 		long count = this.sysJobService.count(
@@ -194,7 +221,7 @@ public class SysJobController {
 	@SysLog("启动全部暂停的定时任务")
 	@PostMapping("/start-jobs")
 	@HasPermission("job_sys_job_start_job")
-	@Operation(description = "启动全部暂停的定时任务")
+	@Operation(summary = "启动全部暂停的定时任务", description = "启动全部暂停的定时任务")
 	public R startJobs() {
 		// 更新定时任务状态条件，暂停状态3更新为运行状态2
 		this.sysJobService.update(SysJob.builder().jobStatus(PigQuartzEnum.JOB_STATUS_RUNNING.getType()).build(),
@@ -211,7 +238,7 @@ public class SysJobController {
 	@SysLog("刷新全部定时任务")
 	@PostMapping("/refresh-jobs")
 	@HasPermission("job_sys_job_refresh_job")
-	@Operation(description = "刷新全部定时任务")
+	@Operation(summary = "刷新全部定时任务", description = "刷新全部定时任务")
 	public R refreshJobs() {
 		sysJobService.list().forEach(sysjob -> {
 			if (PigQuartzEnum.JOB_STATUS_RUNNING.getType().equals(sysjob.getJobStatus())
@@ -233,7 +260,7 @@ public class SysJobController {
 	@SysLog("启动定时任务")
 	@PostMapping("/start-job/{id}")
 	@HasPermission("job_sys_job_start_job")
-	@Operation(description = "启动定时任务")
+	@Operation(summary = "启动定时任务", description = "启动定时任务")
 	public R startJob(@PathVariable("id") Long jobId) throws SchedulerException {
 		SysJob querySysJob = this.sysJobService.getById(jobId);
 		if (querySysJob == null) {
@@ -266,7 +293,7 @@ public class SysJobController {
 	@SysLog("立刻执行定时任务")
 	@PostMapping("/run-job/{id}")
 	@HasPermission("job_sys_job_run_job")
-	@Operation(description = "立刻执行定时任务")
+	@Operation(summary = "立刻执行定时任务", description = "立刻执行定时任务")
 	public R runJob(@PathVariable("id") Long jobId) throws SchedulerException {
 		SysJob querySysJob = this.sysJobService.getById(jobId);
 
@@ -287,7 +314,7 @@ public class SysJobController {
 	@SysLog("暂停定时任务")
 	@PostMapping("/shutdown-job/{id}")
 	@HasPermission("job_sys_job_shutdown_job")
-	@Operation(description = "暂停定时任务")
+	@Operation(summary = "暂停定时任务", description = "暂停定时任务")
 	public R shutdownJob(@PathVariable("id") Long id) {
 		SysJob querySysJob = this.sysJobService.getById(id);
 		// 更新定时任务状态条件，运行状态2更新为暂停状态3
@@ -306,7 +333,7 @@ public class SysJobController {
 	 * @return 分页结果
 	 */
 	@GetMapping("/job-log")
-	@Operation(description = "唯一标识查询定时执行日志")
+	@Operation(summary = "唯一标识查询定时执行日志", description = "唯一标识查询定时执行日志")
 	public R getJobLogPage(Page page, SysJobLog sysJobLog) {
 		return R.ok(sysJobLogService.page(page, Wrappers.query(sysJobLog)));
 	}
@@ -318,7 +345,7 @@ public class SysJobController {
 	 * @return 校验结果，若已存在返回失败信息，否则返回成功
 	 */
 	@GetMapping("/is-valid-task-name")
-	@Operation(description = "检验任务名称和任务组联合是否唯一")
+	@Operation(summary = "检验任务名称和任务组联合是否唯一", description = "检验任务名称和任务组联合是否唯一")
 	public R isValidTaskName(@RequestParam String jobName, @RequestParam String jobGroup) {
 		return this.sysJobService
 			.count(Wrappers.query(SysJob.builder().jobName(jobName).jobGroup(jobGroup).build())) > 0
@@ -332,7 +359,7 @@ public class SysJobController {
 	 */
 	@ResponseExcel
 	@GetMapping("/export")
-	@Operation(description = "导出任务")
+	@Operation(summary = "导出任务", description = "导出任务")
 	public List<SysJob> exportJobs(SysJob sysJob) {
 		return sysJobService.list(Wrappers.query(sysJob));
 	}
